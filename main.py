@@ -38,7 +38,7 @@ def create_lecture(data: LectureRequest):
     try:
         # Save lecture
         lecture_result = (
-            supabase.table("Lectures")
+            supabase.table("lectures")
             .insert({
                 "title": data.title,
                 "professor_name": data.professor_name,
@@ -70,7 +70,7 @@ def create_lecture(data: LectureRequest):
 
         if topics_data:
             topics_result = (
-                supabase.table("Topics")
+                supabase.table("topics")
                 .insert(topics_data)
                 .execute()
             )
@@ -92,7 +92,7 @@ def create_lecture(data: LectureRequest):
 def get_topics(lecture_id: int):
     try:
         result = (
-            supabase.table("Topics")
+            supabase.table("topics")
             .select("id, name, description")
             .eq("lecture_id", lecture_id)
             .execute()
