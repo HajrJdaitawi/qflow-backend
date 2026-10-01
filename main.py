@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI, HTTPException
+
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from supabase import create_client
 
@@ -18,6 +19,7 @@ class QuestionRequest(BaseModel):
     question: str
     lecture_id: int
     student_name: str = "Anonymous"
+    student_id: str = ""
 
 
 @app.get("/")
@@ -45,14 +47,49 @@ def receive_question(data: QuestionRequest):
         result = supabase.table("Questions").insert({
             "lecture_id": data.lecture_id,
             "student_name": data.student_name,
+            "student_id": data.student_id,
             "question_text": data.question,
-            "topic_id": None
+            "topic_id": None,
         }).execute()
 
         return {
             "message": "Question saved successfully",
-            "question": result.data
+            "question": result.data,
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/lectures/{lecture_id}/questions")
+def get_student_questions(
+    lecture_id: int,
+    student_id: str = Query(..., min_length=1),
+):
+    try:
+        result = (
+            supabase.table("Questions")
+            .select("id, lecture_id, student_name, student_id, question_text, topic_id, created_at")
+            .eq("lecture_id", lecture_id)
+            .eq("student_id", student_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return result.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/lectures/{lecture_id}/questions/count")
+def get_question_count(lecture_id: int):
+    try:
+        result = (
+            supabase.table("Questions")
+            .select("id", count="exact")
+            .eq("lecture_id", lecture_id)
+            .execute()
+        )
+
+        return {"lecture_id": lecture_id, "count": result.count or 0}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
