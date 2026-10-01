@@ -1,7 +1,7 @@
 import os
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import create_client
 
 app = FastAPI(title="Q-Flow Backend")
@@ -18,7 +18,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 class LectureRequest(BaseModel):
     title: str
     professor_name: str
-    topics: list[str] = []
+    topics: list[str] = Field(default_factory=list)
 
 
 class QuestionRequest(BaseModel):
@@ -36,7 +36,7 @@ def home():
 @app.post("/lectures")
 def create_lecture(data: LectureRequest):
     try:
-        # Save lecture
+        # Create lecture
         lecture_result = (
             supabase.table("lectures")
             .insert({
@@ -55,7 +55,7 @@ def create_lecture(data: LectureRequest):
         lecture = lecture_result.data[0]
         lecture_id = lecture["id"]
 
-        # Save lecture topics
+        # Create lecture topics
         topics_data = [
             {
                 "lecture_id": lecture_id,
@@ -98,6 +98,7 @@ def get_topics(lecture_id: int):
             .execute()
         )
         return result.data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -105,13 +106,17 @@ def get_topics(lecture_id: int):
 @app.post("/questions")
 def receive_question(data: QuestionRequest):
     try:
-        result = supabase.table("Questions").insert({
-            "lecture_id": data.lecture_id,
-            "student_name": data.student_name,
-            "student_id": data.student_id,
-            "question_text": data.question,
-            "topic_id": None,
-        }).execute()
+        result = (
+            supabase.table("questions")
+            .insert({
+                "lecture_id": data.lecture_id,
+                "student_name": data.student_name,
+                "student_id": data.student_id,
+                "question_text": data.question,
+                "topic_id": None,
+            })
+            .execute()
+        )
 
         return {
             "message": "Question saved successfully",
@@ -129,7 +134,7 @@ def get_student_questions(
 ):
     try:
         result = (
-            supabase.table("Questions")
+            supabase.table("questions")
             .select(
                 "id, lecture_id, student_name, student_id, "
                 "question_text, topic_id, created_at"
@@ -140,6 +145,7 @@ def get_student_questions(
             .execute()
         )
         return result.data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -148,7 +154,7 @@ def get_student_questions(
 def get_question_count(lecture_id: int):
     try:
         result = (
-            supabase.table("Questions")
+            supabase.table("questions")
             .select("id", count="exact")
             .eq("lecture_id", lecture_id)
             .execute()
@@ -158,5 +164,6 @@ def get_question_count(lecture_id: int):
             "lecture_id": lecture_id,
             "count": result.count or 0,
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
